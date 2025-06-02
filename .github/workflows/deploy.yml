@@ -1,0 +1,34 @@
+name: Deploy to Swarm
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build and Push
+        run: |
+          docker build -t ${{ secrets.DOCKER_USER }}/yii-app:latest -f docker/Dockerfile .
+          docker push ${{ secrets.DOCKER_USER }}/yii-app:latest
+
+      - name: Deploy to Swarm
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            export IMAGE_NAME=${{ secrets.DOCKER_USER }}/yii-app:latest
+            docker stack deploy -c docker/docker-compose.swarm.yml yii-app --with-registry-auth
+            docker service update --force yii-app_web

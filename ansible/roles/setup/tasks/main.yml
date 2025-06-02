@@ -1,0 +1,37 @@
+---
+- name: Install dependencies
+  apt:
+    name:
+      - docker.io
+      - docker-compose
+      - nginx
+    update_cache: yes
+    state: latest
+
+- name: Start Docker service
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Initialize Swarm
+  command: docker swarm init
+  ignore_errors: yes
+
+- name: Configure Nginx
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/default
+  notify: Restart Nginx
+
+- name: Enable Nginx
+  systemd:
+    name: nginx
+    state: restarted
+    enabled: yes
+
+- name: Open firewall ports
+  ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
